@@ -1,0 +1,283 @@
+unsigned long fps_tick, dino_tick,object_tick, score_tick, score, high_score, score_blink, score_blink_tick;
+unsigned char rest_ticks, sleep_time = 30;
+//dino variables
+char dino_y, dino_x = -80; bool dino_b = true;
+string dino_name[] = {"dino1.ric","dino2.ric","dino3.ric","dino4.ric","dino5.ric","dino6.ric","dino7.ric","dino8.ric"};
+unsigned char dino_num; bool jumping;
+float jump_vel = 6, jump_x = 0.4;
+//object variables
+struct object{int x;char y;char num;string name;char width, height;};
+string names[] = {"cactus1.ric","cactus2.ric","cactus3.ric","cactus4.ric","cactus5.ric","cactus6.ric",
+"petri1.ric","petri_ground1.ric","petri_ground1.ric","petri2.ric","petri_ground2.ric","petri_ground2.ric",};
+char widths[] = {14, 29, 40, 6, 14, 20, 21, 21,21};
+char heights[] = {24,24,24,17,17,17,18,79,87};
+object object1; object object2;
+bool object_b;
+bool collided;
+
+char volume;
+char score_len, high_score_len, fsize;
+bool handle;
+bool blinking;
+char blink_num;
+bool fps;
+
+#define limit_fps \
+  rest_ticks = fps_tick + sleep_time - CurrentTick();\
+  if(ButtonCount(BTN3, false)%2==0){fps = false;}\
+  else{fps = true;}\
+  if(fps){NumOut(88, LCD_LINE3, rest_ticks);}\
+  Wait(rest_ticks);\
+  fps_tick = CurrentTick();
+
+
+#define update_object2 \
+        if (score > 500){object2.num = Random(9);}else{object2.num = Random(6);}\
+        object2.x = object1.x + object1.width + 70 * (Random(3) + 1);\
+        object2.name = names[object2.num];\
+        object2.width = widths[object2.num];\
+        object2.height = heights[object2.num];\
+        object2.y = heights[object2.num]-64;
+
+
+#define render \
+        object1.x = 300;object1.num = Random(6);\
+        object2.x = 340 + 70 * (Random(3) + 1);object2.num = Random(6);\
+        object1.name = names[object1.num]; object2.name = names[object2.num];\
+        object1.width = widths[object1.num]; object2.width = widths[object2.num];\
+        object1.height = heights[object1.num]; object2.height = heights[object2.num];\
+        object1.y = heights[object1.num]-64; object2.y = heights[object2.num]-64;\
+        volume = Volume(); score_tick = CurrentTick(); score_blink = 100; blink_num = 0;\
+        dino_y = 0; jumping = false; jump_vel = 6; jump_x = 0.4; blinking = false;
+
+
+
+
+bool dino_bool()
+{
+ if (CurrentTick() > dino_tick + 100)
+ {
+  dino_b = !dino_b;
+  dino_tick = CurrentTick();
+  return dino_b;
+ }
+}
+
+bool object_bool()
+{
+ if (CurrentTick() > object_tick + 200)
+ {
+  object_b = !object_b;
+  object_tick = CurrentTick();
+  return object_b;
+ }
+}
+
+
+sub dino()
+{
+ if (dino_y <= 0)
+  {
+   dino_num = 1 + dino_bool();
+   if (ButtonPressed(BTN2, true))
+   {
+    dino_num += 3;
+    dino_x = -72;
+    dino_y = -51;
+   }
+   else
+   {
+    dino_x = -80;
+    dino_y = 0;
+    if (ButtonPressed(BTN4, true))
+    {
+     jumping = true;
+     dino_x = -80;
+     PlayToneEx(TONE_C5,50,volume,false);
+    }
+    else if (object1.num == 8)
+    {
+     dino_num += 5;
+     dino_y = -43;
+    }
+   }
+
+
+  }
+  if (jumping)
+  {
+   dino_num = 0; dino_y += jump_vel; jump_vel -= jump_x;
+   if(ButtonPressed(BTN2, true)&&jump_x > 0)
+   {
+    jump_x = 3;
+   }
+   else
+   {
+    jump_x = 0.4;
+   }
+   if (dino_y <= 0)
+   {
+    jumping = false; jump_vel = 6; jump_x = 0.4; dino_y = 0;
+   }
+  }
+
+}
+
+sub objects()
+{
+  object1.x -= 3; object2.x -= 3;
+  if (object1.x < object1.width * -1)
+  {
+   object1 = object2;
+   update_object2;
+  }
+  if (object1.num > 5)
+  {
+   object1.name = names[object1.num + 3 * object_bool()];
+  }
+  if (object2.num > 5)
+  {
+   object2.name = names[object2.num + 3 * object_bool()];
+  }
+
+}
+
+sub collision()
+{
+ if (object1.num < 6 && object1.x + object1.width > 3 && dino_y < object1.height && object1.x < 16)
+ {
+  collided = true;
+ }
+ else if (object1.num == 6 && object1.x + object1.width > 3 && dino_y < object1.height && object1.x < 16)
+ {
+  collided = true;
+ }
+ else if (object1.num == 7 && dino_x == -80 && object1.x + object1.width > 3 && object1.x < 16 && dino_y < 30)
+ {
+  collided = true;
+ }
+ else if (object1.num == 8 && object1.x < 16 && jumping)
+ {
+  collided = true;
+ }
+ if (collided){
+  if (score > high_score)
+  {
+   high_score = score;
+   high_score_len = StrLen(NumToStr(high_score));
+   DeleteFile("highscore.txt");
+   CreateFile("highscore.txt",fsize,handle);
+   Write(handle, high_score);
+   CloseFile(handle);
+  }
+  if(dino_x != -80)
+  {
+   dino_x = -80;
+   dino_y = 0;
+  }
+  GraphicOut(object1.x,object1.y,object1.name); GraphicOut(object2.x,object2.y,object2.name); GraphicOut(dino_x,dino_y,dino_name[3]);
+  TextOut(22,LCD_LINE3,"Game Over"); GraphicOut(40,18,"Run 01.ric");
+  TextOut(22,LCD_LINE1,"HI00000"); NumOut(64-6*high_score_len,LCD_LINE1,high_score);
+  TextOut(70,LCD_LINE1,"00000"); NumOut(100-6*score_len,LCD_LINE1,score);
+  PlayToneEx(TONE_A3,50,volume,false); Wait(100); PlayToneEx(TONE_A3,50,volume,false); Wait(900);
+  LineOut(57,20,57,33,DRAW_OPT_CLEAR_PIXELS); GraphicOut(40,18,"Two Arrows.ric");
+  if(ButtonPressed(BTN4, true))
+  {
+   until(ButtonReleaseCount(BTN4)==2){}
+  }
+  else
+  {
+   until(ButtonReleaseCount(BTN4)==1){}
+  }
+  collided = false;
+  render;
+  score_tick = CurrentTick();
+ }
+}
+
+sub display()
+{
+ GraphicOut(object1.x,object1.y,object1.name);
+ GraphicOut(object2.x,object2.y,object2.name);
+ GraphicOut(dino_x,dino_y,dino_name[dino_num]);
+}
+
+sub caclculate_score()
+{
+ score = (CurrentTick() - score_tick)/100;
+ score_len = StrLen(NumToStr(score));
+ if (score == score_blink)
+ {
+  blinking = true;
+  score_blink_tick = CurrentTick();
+ }
+ if (blinking)
+ {
+  if (CurrentTick() > 200 + score_blink_tick)
+  {
+   score_blink_tick = CurrentTick();
+   if (blink_num<6)
+   {
+    blink_num += 1;
+   }
+   else
+   {
+    blinking = false;
+    score_blink += 100;
+    blink_num = 0;
+   }
+   if (blink_num==2)
+   {
+    PlayToneEx(TONE_FS5,80,volume,false);
+   }
+  }
+  if (blink_num % 2)
+  {
+   TextOut(70,LCD_LINE1,"00000");
+   NumOut(100-6*score_len,LCD_LINE1,score_blink);
+  }
+  if (CurrentTick() > 85 + score_blink_tick && blink_num == 2)
+  {
+   PlayToneEx(TONE_G5,150,volume,false);
+  }
+ }
+ else
+ {
+  TextOut(70,LCD_LINE1,"00000");
+  NumOut(100-6*score_len,LCD_LINE1,score);
+ }
+ if (high_score != 0)
+ {
+  TextOut(22,LCD_LINE1,"HI00000");
+  NumOut(64-6*high_score_len,LCD_LINE1,high_score);
+ }
+}
+
+
+task main()
+{
+ render;
+ unsigned int rtn_code;
+ rtn_code = OpenFileRead("highscore.txt",fsize,handle);
+ if (rtn_code == LDR_SUCCESS)
+ {
+  Read(handle, high_score);
+  CloseFile(handle);
+ }
+ else
+ {
+  fsize = 4;
+ }
+
+ high_score_len = StrLen(NumToStr(high_score));
+ while(1)
+ {
+  ClearScreen();
+  dino();
+  objects();
+  display();
+  caclculate_score();
+  collision();
+  limit_fps;
+ }
+}
