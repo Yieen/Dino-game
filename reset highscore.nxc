@@ -1,0 +1,14 @@
+byte handle;
+long x = 0;
+int fsize = 4;
+task main(){
+     DeleteFile("highscore.txt");
+     CreateFile("highscore.txt",fsize,handle);
+     Write(handle, x);
+     CloseFile(handle);
+     TextOut(10, LCD_LINE4, "  high score");
+     TextOut(10, LCD_LINE5, "has been reset");
+     until(ButtonPressed(BTN4, true))
+     {
+     }
+}
